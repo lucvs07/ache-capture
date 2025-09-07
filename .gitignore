@@ -1,0 +1,40 @@
+# Python
+__pycache__/
+*.py[cod]
+*.so
+*.egg
+*.egg-info/
+dist/
+build/
+.eggs/
+
+# VSCode
+.vscode/
+
+# Ambientes virtuais
+venv/
+.env/
+.env
+
+# Arquivos de configuração e cache
+*.log
+*.pot
+*.mo
+*.pyo
+*.pyd
+*.db
+*.sqlite3
+*.sqlite
+*.mypy_cache/
+*.pytest_cache/
+
+# Outros
+.DS_Store
+Thumbs.db
+.idea/
+*.swp
+*.bak
+*.tmp
+
+# Cloudinary
+ache_capture_*.jpg
