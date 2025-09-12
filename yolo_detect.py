@@ -7,11 +7,14 @@ import sys
 import argparse
 import glob
 import time
-
+import random
 import cv2
 import numpy as np
 from ultralytics import YOLO
 import datetime
+import requests
+import threading
+import queue
 
 load_dotenv()
 # Configuration       
@@ -48,6 +51,8 @@ parser.add_argument('--record', help='Record results from video or webcam and sa
                     action='store_true')
 parser.add_argument('--unsigned', help='Use unsigned upload (requires --upload_preset configured in Cloudinary)', action='store_true')
 parser.add_argument('--upload_preset', help='Upload preset name to use with unsigned uploads', default=None)
+parser.add_argument('--api_url', help='HTTP API URL to POST Product JSON to (example: http://localhost:3000/api/products)', default=None)
+parser.add_argument('--api_timeout', help='Timeout (seconds) for API POST requests. Use 0 for no timeout.', type=float, default=0.0)
 
 args = parser.parse_args()
 
@@ -67,6 +72,36 @@ if (not os.path.exists(model_path)):
 # Load the model into memory and get labemap
 model = YOLO(model_path, task='detect')
 labels = model.names
+
+# Background poster: use a queue and a worker thread to POST Product JSONs without
+# blocking the capture loop. Each queue entry is a dict with keys: url, json, headers, timeout
+post_queue = queue.Queue()
+
+def post_worker(q: queue.Queue):
+    session = requests.Session()
+    while True:
+        item = q.get()
+        try:
+            if item is None:
+                break
+            url = item.get('url')
+            payload = item.get('json')
+            headers = item.get('headers')
+            timeout = item.get('timeout')
+            try:
+                r = session.post(url, json=payload, headers=headers, timeout=timeout)
+                if r.status_code >= 200 and r.status_code < 300:
+                    print('Background POST succeeded:', url)
+                else:
+                    print('Background POST failed:', r.status_code, r.text)
+            except Exception as e:
+                print('Background POST exception:', e)
+        finally:
+            q.task_done()
+
+# Start background poster thread (daemon so it doesn't block process exit if something goes wrong)
+post_thread = threading.Thread(target=post_worker, args=(post_queue,), daemon=True)
+post_thread.start()
 
 # Parse input to determine if image source is a file, folder, video, or USB camera
 img_ext_list = ['.jpg','.JPG','.jpeg','.JPEG','.png','.PNG','.bmp','.BMP']
@@ -254,6 +289,59 @@ while True:
             print('Upload OK:')
             print(' - sem label:', resp_sem.get('secure_url'))
             print(' - com label:', resp_com.get('secure_url'))
+            # Se uma API foi fornecida, montar e enviar o JSON Product
+            if args.api_url:
+                try:
+                    # Determinar tipo (pegar o primeiro rótulo detectado com maior confiança)
+                    tipo = 'desconhecido'
+                    veracidade = '0%'
+                    aprovado = False
+                    status = 'verificar'
+                    if len(detections) > 0:
+                        best = max(detections, key=lambda d: float(d.conf.item()))
+                        classidx = int(best.cls.item())
+                        tipo = labels[classidx]
+                        veracidade = f"{int(best.conf.item()*100)}%"
+                        ver_val = int(veracidade.replace('%',''))
+                        if ver_val >= 90:
+                            status = 'aprovado'
+                            aprovado = True
+                        elif ver_val >= 60:
+                            status = 'verificar'
+                            aprovado = False
+                        else:
+                            status = 'rejeitado'
+                            aprovado = False
+
+                    product = {
+                        'id': random.randint(1000, 9999),
+                        'data': datetime.datetime.now().isoformat(),
+                        'tipo': tipo,
+                        'aprovado': aprovado,
+                        'status': status,
+                        'veracidade': veracidade,
+                        'imgLabel': resp_com.get('secure_url'),
+                        'imgNormal': resp_sem.get('secure_url')
+                    }
+
+                    headers = {'Content-Type': 'application/json'}
+                    # If api_timeout is 0 or negative, use no timeout (None)
+                    post_timeout = None if (args.api_timeout is None or float(args.api_timeout) <= 0) else float(args.api_timeout)
+
+                    # Enqueue the product for background posting so the capture loop is not blocked
+                    post_item = {
+                        'url': args.api_url,
+                        'json': product,
+                        'headers': headers,
+                        'timeout': post_timeout
+                    }
+                    try:
+                        post_queue.put_nowait(post_item)
+                        print('Product enqueued for background POST:', args.api_url)
+                    except queue.Full:
+                        print('Post queue is full; dropping product')
+                except Exception as e:
+                    print('Error posting to API:', e)
         except Exception as e:
             print('Erro ao enviar para Cloudinary:', e)
         finally:
@@ -314,3 +402,7 @@ elif source_type == 'picamera':
     cap.stop()
 if record: recorder.release()
 cv2.destroyAllWindows()
+
+# Signal background poster to exit and wait for it to finish
+post_queue.put(None)
+post_queue.join()
