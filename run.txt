@@ -3,3 +3,18 @@ python yolo_detect.py --model path\to\model.pt --source usb0 --resolution 640x48
 python yolo_detect.py --model model-v8.pt --source usb0 --resolution 640x480 --unsigned --upload_preset your_preset --api_url https://achecourtroom-backend.onrender.com/analise/add
 
 python yolo_detect.py --model model-v9.pt --source usb0 --api_url https://achecourtroom-backend.onrender.com/analise/add --api_timeout 0
+
+#Setup
+sudo apt update && sudo apt upgrade -y
+
+python -m venv --system-site-packages venv
+
+source venv/bin/activate
+
+git pull --all
+
+python -m pip install -r requirements.txt
+
+ls /dev/video*
+
+yolo export model=model-v9.pt format=ncnn
