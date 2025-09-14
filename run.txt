@@ -1,0 +1,5 @@
+python yolo_detect.py --model path\to\model.pt --source usb0 --resolution 640x480 --api_url http://localhost:3000/api/products
+
+python yolo_detect.py --model model-v8.pt --source usb0 --resolution 640x480 --unsigned --upload_preset your_preset --api_url https://achecourtroom-backend.onrender.com/analise/add
+
+python yolo_detect.py --model model-v9.pt --source usb0 --api_url https://achecourtroom-backend.onrender.com/analise/add --api_timeout 0
