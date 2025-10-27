@@ -4,6 +4,8 @@ python yolo_detect.py --model model-v8.pt --source usb0 --resolution 640x480 --u
 
 python yolo_detect.py --model model-v9.pt --source usb0 --api_url https://achecourtroom-backend.onrender.com/analise/add --api_timeout 0
 
+pip install python-dotenv cloudinary opencv-python ultralytics requests numpy lap
+
 #Setup
 sudo apt update && sudo apt upgrade -y
 
