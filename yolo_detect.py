@@ -13,6 +13,7 @@ import numpy as np
 from ultralytics import YOLO
 import datetime
 import requests
+
 import threading
 import queue
 
@@ -73,35 +74,9 @@ if (not os.path.exists(model_path)):
 model = YOLO(model_path, task='detect')
 labels = model.names
 
-# Background poster: use a queue and a worker thread to POST Product JSONs without
-# blocking the capture loop. Each queue entry is a dict with keys: url, json, headers, timeout
-post_queue = queue.Queue()
 
-def post_worker(q: queue.Queue):
-    session = requests.Session()
-    while True:
-        item = q.get()
-        try:
-            if item is None:
-                break
-            url = item.get('url')
-            payload = item.get('json')
-            headers = item.get('headers')
-            timeout = item.get('timeout')
-            try:
-                r = session.post(url, json=payload, headers=headers, timeout=timeout)
-                if r.status_code >= 200 and r.status_code < 300:
-                    print('Background POST succeeded:', url)
-                else:
-                    print('Background POST failed:', r.status_code, r.text)
-            except Exception as e:
-                print('Background POST exception:', e)
-        finally:
-            q.task_done()
-
-# Start background poster thread (daemon so it doesn't block process exit if something goes wrong)
-post_thread = threading.Thread(target=post_worker, args=(post_queue,), daemon=True)
-post_thread.start()
+# Lista para armazenar os produtos detectados
+produtos_detectados = []
 
 # Parse input to determine if image source is a file, folder, video, or USB camera
 img_ext_list = ['.jpg','.JPG','.jpeg','.JPEG','.png','.PNG','.bmp','.BMP']
@@ -289,59 +264,40 @@ while True:
             print('Upload OK:')
             print(' - sem label:', resp_sem.get('secure_url'))
             print(' - com label:', resp_com.get('secure_url'))
-            # Se uma API foi fornecida, montar e enviar o JSON Product
-            if args.api_url:
-                try:
-                    # Determinar tipo (pegar o primeiro rótulo detectado com maior confiança)
-                    tipo = 'desconhecido'
-                    veracidade = '0%'
-                    aprovado = False
+
+            # Montar o JSON do produto e adicionar ao array
+            tipo = 'desconhecido'
+            veracidade = '0%'
+            aprovacao = False
+            status = 'verificar'
+            if len(detections) > 0:
+                best = max(detections, key=lambda d: float(d.conf.item()))
+                classidx = int(best.cls.item())
+                tipo = labels[classidx]
+                veracidade = f"{int(best.conf.item()*100)}%"
+                ver_val = int(veracidade.replace('%',''))
+                if ver_val >= 90:
+                    status = 'aprovado'
+                    aprovacao = True
+                elif ver_val >= 60:
                     status = 'verificar'
-                    if len(detections) > 0:
-                        best = max(detections, key=lambda d: float(d.conf.item()))
-                        classidx = int(best.cls.item())
-                        tipo = labels[classidx]
-                        veracidade = f"{int(best.conf.item()*100)}%"
-                        ver_val = int(veracidade.replace('%',''))
-                        if ver_val >= 90:
-                            status = 'aprovado'
-                            aprovado = True
-                        elif ver_val >= 60:
-                            status = 'verificar'
-                            aprovado = False
-                        else:
-                            status = 'rejeitado'
-                            aprovado = False
+                    aprovacao = False
+                else:
+                    status = 'rejeitado'
+                    aprovacao = False
 
-                    product = {
-                        'id': random.randint(1000, 9999),
-                        'data': datetime.datetime.now().isoformat(),
-                        'tipo': tipo,
-                        'aprovado': aprovado,
-                        'status': status,
-                        'veracidade': veracidade,
-                        'imgLabel': resp_com.get('secure_url'),
-                        'imgNormal': resp_sem.get('secure_url')
-                    }
-
-                    headers = {'Content-Type': 'application/json'}
-                    # If api_timeout is 0 or negative, use no timeout (None)
-                    post_timeout = None if (args.api_timeout is None or float(args.api_timeout) <= 0) else float(args.api_timeout)
-
-                    # Enqueue the product for background posting so the capture loop is not blocked
-                    post_item = {
-                        'url': args.api_url,
-                        'json': product,
-                        'headers': headers,
-                        'timeout': post_timeout
-                    }
-                    try:
-                        post_queue.put_nowait(post_item)
-                        print('Product enqueued for background POST:', args.api_url)
-                    except queue.Full:
-                        print('Post queue is full; dropping product')
-                except Exception as e:
-                    print('Error posting to API:', e)
+            product = {
+                'id': random.randint(1000, 9999),
+                'data': datetime.datetime.now().isoformat(),
+                'tipo': tipo,
+                'aprovacao': aprovacao,
+                'status': status,
+                'veracidade': veracidade,
+                'imgLabel': resp_com.get('secure_url'),
+                'imgNormal': resp_sem.get('secure_url')
+            }
+            produtos_detectados.append(product)
+            print('Produto adicionado ao array. Total:', len(produtos_detectados))
         except Exception as e:
             print('Erro ao enviar para Cloudinary:', e)
         finally:
@@ -373,6 +329,21 @@ while True:
         cv2.waitKey()
     elif key == ord('p') or key == ord('P'): # Press 'p' to save a picture of results on this frame
         cv2.imwrite('capture.png',frame)
+    elif key == ord('a') or key == ord('A'):
+        # Pressione 'a' para enviar todos os produtos para a API, se configurada
+        if args.api_url and len(produtos_detectados) > 0:
+            try:
+                headers = {'Content-Type': 'application/json'}
+                post_timeout = None if (args.api_timeout is None or float(args.api_timeout) <= 0) else float(args.api_timeout)
+                response = requests.post(args.api_url, json=produtos_detectados, headers=headers, timeout=post_timeout)
+                if response.status_code >= 200 and response.status_code < 300:
+                    print('POST de todos os produtos realizado com sucesso!')
+                else:
+                    print('Falha ao enviar produtos:', response.status_code, response.text)
+            except Exception as e:
+                print('Erro ao enviar produtos para API:', e)
+        else:
+            print('Nenhum produto para enviar ou API não configurada.')
     
     # Calculate FPS for this frame
     t_stop = time.perf_counter()
@@ -403,6 +374,8 @@ elif source_type == 'picamera':
 if record: recorder.release()
 cv2.destroyAllWindows()
 
-# Signal background poster to exit and wait for it to finish
-post_queue.put(None)
-post_queue.join()
+
+# Ao final, pode salvar o array em arquivo local se desejar
+# import json
+# with open('produtos_detectados.json', 'w', encoding='utf-8') as f:
+#     json.dump(produtos_detectados, f, ensure_ascii=False, indent=2)
