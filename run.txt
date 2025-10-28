@@ -4,6 +4,9 @@ python yolo_detect.py --model model-v8.pt --source usb0 --resolution 640x480 --u
 
 python yolo_detect.py --model model-v9.pt --source usb0 --api_url https://achecourtroom-backend.onrender.com/analise/add --api_timeout 0
 
+source venv/bin/activate && python3 yolo_detect.py --model model-v14.pt --source model6.mp4 --thresh 0.3 --trigger_line 50 --save_crossings --output_dir teste_crossing 2>&1 | tail
+
+
 #Setup
 sudo apt update && sudo apt upgrade -y
 
