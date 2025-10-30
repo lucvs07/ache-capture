@@ -21,3 +21,7 @@ python -m pip install -r requirements.txt
 ls /dev/video*
 
 yolo export model=model-v9.pt format=ncnn
+
+https://achevision.netlify.app/#/
+
+https://achecourtroom-backend.onrender.com/analise/add
