@@ -84,8 +84,10 @@ parser.add_argument('--unsigned', help='Use unsigned upload (requires --upload_p
 parser.add_argument('--upload_preset', help='Upload preset name to use with unsigned uploads', default=None)
 parser.add_argument('--api_url', help='HTTP API URL to POST Product JSON to (example: http://localhost:3000/api/products)', default=None)
 parser.add_argument('--api_timeout', help='Timeout (seconds) for API POST requests. Use 0 for no timeout.', type=float, default=10.0)
-parser.add_argument('--trigger_line', help='X-coordinate for trigger line as percentage of frame width (0-100, example: "50" for center)', 
-                    type=int, default=50)
+parser.add_argument('--trigger_line', help='Position for trigger line as percentage (0-100). For horizontal: percentage of frame height. For vertical: percentage of frame width.', 
+                    type=int, default=20)
+parser.add_argument('--trigger_orientation', help='Trigger line orientation: "horizontal" (detects top-bottom crossing) or "vertical" (detects left-right crossing)', 
+                    type=str, default='horizontal', choices=['horizontal', 'vertical'])
 parser.add_argument('--save_crossings', help='Save images of objects that cross the trigger line locally', action='store_true')
 parser.add_argument('--output_dir', help='Directory to save crossing images (default: "crossings")', default='crossings')
 
@@ -215,6 +217,10 @@ def send_to_api(snapshot: DetectionSnapshot, cloudinary_urls: Dict) -> bool:
             'cruzouLinha': True,
             'timestamp': snapshot.timestamp
         }
+        
+        # Adicionar campo 'contagem' se for blister incompleto
+        if snapshot.metadata.get('contagem') is not None:
+            product['contagem'] = snapshot.metadata['contagem']
         
         # Enviar via queue do post_worker (já existente)
         post_timeout = None if (args.api_timeout <= 0) else args.api_timeout
@@ -428,7 +434,11 @@ print('=' * 60)
 print(f'Fonte: {img_source}')
 print(f'Tipo: {source_type}')
 print(f'Modelo: {model_path}')
-print(f'Trigger Line: {args.trigger_line}% da largura (linha vertical)')
+if args.trigger_orientation == 'horizontal':
+    print(f'Trigger Line: {args.trigger_line}% da altura (linha horizontal)')
+else:
+    print(f'Trigger Line: {args.trigger_line}% da largura (linha vertical)')
+print(f'Orientação da linha: {args.trigger_orientation}')
 print(f'API URL: {args.api_url if args.api_url else "Não configurada"}')
 print(f'Salvar cruzamentos: {"Sim" if args.save_crossings else "Não"}')
 if args.save_crossings:
@@ -471,8 +481,13 @@ while True:
     if resize == True:
         frame = cv2.resize(frame,(resW,resH))
 
-    # Calculate trigger line position (vertical line at X)
-    trigger_x = int((args.trigger_line / 100) * frame.shape[1])
+    # Calculate trigger line position based on orientation
+    if args.trigger_orientation == 'horizontal':
+        trigger_y = int((args.trigger_line / 100) * frame.shape[0])
+        trigger_x = None  # Not used for horizontal
+    else:  # vertical
+        trigger_x = int((args.trigger_line / 100) * frame.shape[1])
+        trigger_y = None  # Not used for vertical
 
     # Save clean frame copy
     frame_sem_label = frame.copy()
@@ -553,13 +568,21 @@ while True:
                 object_registry[track_id]['best_frame_labeled'] = frame.copy()  # Backup (não usado no snapshot)
                 object_registry[track_id]['detection_bbox'] = (xmin, ymin, xmax, ymax)
             
-            # Check trigger line crossing (use X coordinate for vertical line)
+            # Check trigger line crossing based on orientation
             if len(object_registry[track_id]['position_history']) >= 2:
-                prev_x = object_registry[track_id]['position_history'][-2][0]
-                curr_x = center_x
+                if args.trigger_orientation == 'horizontal':
+                    # Horizontal line: detect Y-axis crossing (top-bottom or bottom-top)
+                    prev_y = object_registry[track_id]['position_history'][-2][1]
+                    curr_y = center_y
+                    crossed = (prev_y < trigger_y <= curr_y) or (prev_y > trigger_y >= curr_y)
+                else:
+                    # Vertical line: detect X-axis crossing (left-right or right-left)
+                    prev_x = object_registry[track_id]['position_history'][-2][0]
+                    curr_x = center_x
+                    crossed = (prev_x < trigger_x <= curr_x) or (prev_x > trigger_x >= curr_x)
                 
-                # Detect crossing (left to right or right to left)
-                if (prev_x < trigger_x <= curr_x) or (prev_x > trigger_x >= curr_x):
+                # If crossed the trigger line
+                if crossed:
                     if not object_registry[track_id]['crossed_line']:
                         object_registry[track_id]['crossed_line'] = True
                         crossed_objects.add(track_id)
@@ -583,6 +606,11 @@ while True:
                         print(f'   Consenso: {vote_count}/{total_votes} detecções ({vote_percent}%)')
                         print(f'   ID: {track_id} | UUID: {obj_uuid[:8]}...')
                         print(f'   Tempo de vida: {lifetime:.2f}s')
+                        
+                        # Verificar se é blister incompleto
+                        if 'incompleto' in majority_class.lower() or 'incomplete' in majority_class.lower():
+                            print(f'   ⚠️  Blister Incompleto Detectado - Contagem: PENDENTE')
+                        
                         print(f'   ⏳ Aguardando batch upload após inatividade')
                         print('=' * 70)
                         
@@ -638,6 +666,9 @@ while True:
                             hash_normal = hashlib.md5(snapshot_normal.tobytes()).hexdigest()[:16]
                             hash_labeled = hashlib.md5(snapshot_labeled.tobytes()).hexdigest()[:16]
                             
+                            # Verificar se é um blister incompleto
+                            is_incomplete_blister = 'incompleto' in majority_class.lower() or 'incomplete' in majority_class.lower()
+                            
                             # Criar estrutura de metadados
                             metadata = {
                                 'tipo': majority_class,
@@ -647,7 +678,8 @@ while True:
                                 'confianca': best_conf,
                                 'consenso': f"{vote_count}/{total_votes}",
                                 'consensoPercentual': vote_percent,
-                                'tempoVidaSegundos': round(lifetime, 2)
+                                'tempoVidaSegundos': round(lifetime, 2),
+                                'contagem': 'pendente' if is_incomplete_blister else None
                             }
                             
                             # Criar snapshot imutável
@@ -725,11 +757,17 @@ while True:
         # NÃO remover de crossed_objects - manter contagem de objetos que cruzaram
         # crossed_objects.discard(track_id)  # REMOVIDO para manter contagem correta
 
-    # Draw trigger line (vertical)
-    cv2.line(frame, (trigger_x, 0), (trigger_x, frame.shape[0]), (0, 255, 0), 3)
-    # Put label near top of the line
-    label_x = min(trigger_x + 10, frame.shape[1] - 100)
-    cv2.putText(frame, 'TRIGGER LINE', (label_x, 20), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 0), 2)
+    # Draw trigger line based on orientation
+    if args.trigger_orientation == 'horizontal':
+        # Horizontal line (crosses Y-axis)
+        cv2.line(frame, (0, trigger_y), (frame.shape[1], trigger_y), (0, 255, 0), 3)
+        label_y = max(trigger_y - 10, 20)
+        cv2.putText(frame, 'TRIGGER LINE (HORIZONTAL)', (10, label_y), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 0), 2)
+    else:
+        # Vertical line (crosses X-axis)
+        cv2.line(frame, (trigger_x, 0), (trigger_x, frame.shape[0]), (0, 255, 0), 3)
+        label_x = min(trigger_x + 10, frame.shape[1] - 250)
+        cv2.putText(frame, 'TRIGGER LINE (VERTICAL)', (label_x, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 0), 2)
 
     # Calculate and draw framerate (if using video, USB, or Picamera source)
     if source_type in ['video', 'usb', 'picamera']:
