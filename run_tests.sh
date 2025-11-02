@@ -42,6 +42,12 @@ fi
 if [ -f "model-v14.pt" ]; then
     MODELS_AVAILABLE+=("model-v14.pt")
 fi
+if [ -f "best.pt" ]; then
+    MODELS_AVAILABLE+=("best.pt")
+fi
+if [ -f "model-v16.pt" ]; then
+    MODELS_AVAILABLE+=("model-v16.pt")
+fi
 
 # Verificar se há modelos disponíveis
 if [ ${#MODELS_AVAILABLE[@]} -eq 0 ]; then
@@ -75,6 +81,25 @@ fi
 echo -e "${GREEN}✓ Usando modelo: $MODEL${NC}"
 echo ""
 
+# Perguntar orientação da trigger line
+echo "Escolha a orientação da trigger line:"
+echo "1) Horizontal (detecta objetos cruzando de cima para baixo)"
+echo "2) Vertical (detecta objetos cruzando da esquerda para direita)"
+echo ""
+read -p "Orientação (1-2, padrão: 1): " ORIENTATION_CHOICE
+
+case $ORIENTATION_CHOICE in
+    2)
+        TRIGGER_ORIENTATION="vertical"
+        echo -e "${GREEN}✓ Linha vertical selecionada${NC}"
+        ;;
+    *)
+        TRIGGER_ORIENTATION="horizontal"
+        echo -e "${GREEN}✓ Linha horizontal selecionada (padrão)${NC}"
+        ;;
+esac
+echo ""
+
 # Menu de opções
 echo "Escolha o tipo de teste:"
 echo "1) Webcam (USB0) - Teste básico"
@@ -95,6 +120,7 @@ case $OPTION in
             --source usb0 \
             --thresh 0.5 \
             --trigger_line 50 \
+            --trigger_orientation "$TRIGGER_ORIENTATION" \
             --resolution 1280x720
         ;;
     
@@ -106,6 +132,7 @@ case $OPTION in
             --source usb0 \
             --thresh 0.5 \
             --trigger_line 50 \
+            --trigger_orientation "$TRIGGER_ORIENTATION" \
             --resolution 1280x720 \
             --save_crossings \
             --output_dir capturas_webcam
@@ -122,7 +149,8 @@ case $OPTION in
             --model "$MODEL" \
             --source "$VIDEO_PATH" \
             --thresh 0.5 \
-            --trigger_line 50
+            --trigger_line 50 \
+            --trigger_orientation "$TRIGGER_ORIENTATION"
         ;;
     
     4)
@@ -138,6 +166,7 @@ case $OPTION in
             --source "$VIDEO_PATH" \
             --thresh 0.5 \
             --trigger_line 50 \
+            --trigger_orientation "$TRIGGER_ORIENTATION" \
             --save_crossings \
             --output_dir resultados_video
         echo ""
@@ -160,6 +189,7 @@ case $OPTION in
             --source "$VIDEO_PATH" \
             --thresh 0.5 \
             --trigger_line 50 \
+            --trigger_orientation "$TRIGGER_ORIENTATION" \
             --save_crossings \
             --output_dir resultados_api \
             --api_url "$API_URL"
@@ -183,6 +213,7 @@ case $OPTION in
             --source "$VIDEO_PATH" \
             --thresh 0.5 \
             --trigger_line "$TRIGGER" \
+            --trigger_orientation "$TRIGGER_ORIENTATION" \
             --save_crossings \
             --output_dir resultados_completo \
             --api_url "$API_URL"
@@ -197,7 +228,7 @@ case $OPTION in
         TRIGGER=${TRIGGER:-50}
         read -p "Salvar cruzamentos? (s/n): " SAVE
         
-        CMD="python3 yolo_detect.py --model $MODEL --source $SOURCE --thresh $THRESH --trigger_line $TRIGGER"
+        CMD="python3 yolo_detect.py --model $MODEL --source $SOURCE --thresh $THRESH --trigger_line $TRIGGER --trigger_orientation $TRIGGER_ORIENTATION"
         
         if [[ $SAVE == "s" || $SAVE == "S" ]]; then
             read -p "Pasta de saída (padrão: crossings): " OUTPUT
