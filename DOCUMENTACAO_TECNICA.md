@@ -623,6 +623,7 @@ python yolo_detect.py \
   --thresh <0.0-1.0>              # Threshold de confiança mínima (padrão: 0.5)
   --trigger_line <0-100>          # Posição da linha (% altura ou largura, padrão: 20)
   --trigger_orientation <h|v>     # Orientação: "horizontal" ou "vertical" (padrão: horizontal)
+  --flip_camera                   # Inverte câmera 180° (se montada de cabeça pra baixo)
   --resolution <WxH>              # Resolução de exibição (ex: 1280x720)
   --api_url <url>                 # URL da API para enviar dados
   --api_timeout <segundos>        # Timeout de requisições API (padrão: 10.0)

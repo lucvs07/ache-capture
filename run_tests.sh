@@ -100,6 +100,25 @@ case $ORIENTATION_CHOICE in
 esac
 echo ""
 
+# Perguntar se câmera está invertida
+echo "A câmera está montada de cabeça para baixo?"
+echo "1) Não (orientação normal)"
+echo "2) Sim (inverter imagem 180°)"
+echo ""
+read -p "Câmera invertida (1-2, padrão: 1): " FLIP_CHOICE
+
+case $FLIP_CHOICE in
+    2)
+        FLIP_CAMERA="--flip_camera"
+        echo -e "${GREEN}✓ Câmera será invertida 180°${NC}"
+        ;;
+    *)
+        FLIP_CAMERA=""
+        echo -e "${GREEN}✓ Orientação normal da câmera${NC}"
+        ;;
+esac
+echo ""
+
 # Menu de opções
 echo "Escolha o tipo de teste:"
 echo "1) Webcam (USB0) - Teste básico"
@@ -121,6 +140,7 @@ case $OPTION in
             --thresh 0.5 \
             --trigger_line 50 \
             --trigger_orientation "$TRIGGER_ORIENTATION" \
+            $FLIP_CAMERA \
             --resolution 1280x720
         ;;
     
@@ -133,6 +153,7 @@ case $OPTION in
             --thresh 0.5 \
             --trigger_line 50 \
             --trigger_orientation "$TRIGGER_ORIENTATION" \
+            $FLIP_CAMERA \
             --resolution 1280x720 \
             --save_crossings \
             --output_dir capturas_webcam
@@ -150,7 +171,8 @@ case $OPTION in
             --source "$VIDEO_PATH" \
             --thresh 0.5 \
             --trigger_line 50 \
-            --trigger_orientation "$TRIGGER_ORIENTATION"
+            --trigger_orientation "$TRIGGER_ORIENTATION" \
+            $FLIP_CAMERA
         ;;
     
     4)
@@ -167,6 +189,7 @@ case $OPTION in
             --thresh 0.5 \
             --trigger_line 50 \
             --trigger_orientation "$TRIGGER_ORIENTATION" \
+            $FLIP_CAMERA \
             --save_crossings \
             --output_dir resultados_video
         echo ""
@@ -190,6 +213,7 @@ case $OPTION in
             --thresh 0.5 \
             --trigger_line 50 \
             --trigger_orientation "$TRIGGER_ORIENTATION" \
+            $FLIP_CAMERA \
             --save_crossings \
             --output_dir resultados_api \
             --api_url "$API_URL"
@@ -214,6 +238,7 @@ case $OPTION in
             --thresh 0.5 \
             --trigger_line "$TRIGGER" \
             --trigger_orientation "$TRIGGER_ORIENTATION" \
+            $FLIP_CAMERA \
             --save_crossings \
             --output_dir resultados_completo \
             --api_url "$API_URL"
@@ -228,7 +253,7 @@ case $OPTION in
         TRIGGER=${TRIGGER:-50}
         read -p "Salvar cruzamentos? (s/n): " SAVE
         
-        CMD="python3 yolo_detect.py --model $MODEL --source $SOURCE --thresh $THRESH --trigger_line $TRIGGER --trigger_orientation $TRIGGER_ORIENTATION"
+        CMD="python3 yolo_detect.py --model $MODEL --source $SOURCE --thresh $THRESH --trigger_line $TRIGGER --trigger_orientation $TRIGGER_ORIENTATION $FLIP_CAMERA"
         
         if [[ $SAVE == "s" || $SAVE == "S" ]]; then
             read -p "Pasta de saída (padrão: crossings): " OUTPUT

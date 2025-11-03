@@ -88,6 +88,8 @@ parser.add_argument('--trigger_line', help='Position for trigger line as percent
                     type=int, default=20)
 parser.add_argument('--trigger_orientation', help='Trigger line orientation: "horizontal" (detects top-bottom crossing) or "vertical" (detects left-right crossing)', 
                     type=str, default='horizontal', choices=['horizontal', 'vertical'])
+parser.add_argument('--flip_camera', help='Flip camera 180 degrees (upside down). Use this if camera is mounted upside down.', 
+                    action='store_true')
 parser.add_argument('--save_crossings', help='Save images of objects that cross the trigger line locally', action='store_true')
 parser.add_argument('--output_dir', help='Directory to save crossing images (default: "crossings")', default='crossings')
 
@@ -439,6 +441,7 @@ if args.trigger_orientation == 'horizontal':
 else:
     print(f'Trigger Line: {args.trigger_line}% da largura (linha vertical)')
 print(f'Orientação da linha: {args.trigger_orientation}')
+print(f'Câmera invertida (180°): {"Sim" if args.flip_camera else "Não"}')
 print(f'API URL: {args.api_url if args.api_url else "Não configurada"}')
 print(f'Salvar cruzamentos: {"Sim" if args.save_crossings else "Não"}')
 if args.save_crossings:
@@ -476,6 +479,10 @@ while True:
         if (frame is None):
             print('Unable to read frames from the Picamera. This indicates the camera is disconnected or not working. Exiting program.')
             break
+
+    # Flip camera 180 degrees if requested (camera mounted upside down)
+    if args.flip_camera:
+        frame = cv2.rotate(frame, cv2.ROTATE_180)
 
     # Resize frame to desired display resolution
     if resize == True:
