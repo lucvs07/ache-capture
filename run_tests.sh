@@ -128,8 +128,9 @@ echo "4) Vídeo - Com salvamento local"
 echo "5) Vídeo - Com API local"
 echo "6) Vídeo - Completo (API + Salvamento)"
 echo "7) Personalizado"
+echo "8) Competition Mode"
 echo ""
-read -p "Opção (1-7): " OPTION
+read -p "Opção (1-8): " OPTION
 
 case $OPTION in
     1)
@@ -275,6 +276,18 @@ case $OPTION in
         echo ""
         echo -e "${YELLOW}Executando: $CMD${NC}"
         eval $CMD
+        ;;
+    8)
+        echo -e "${YELLOW}🚀 Iniciando...${NC}"
+        python3 yolo_detect.py \
+            --model "$MODEL" \
+            --source usb0 \
+            --thresh 0.5 \
+            --trigger_line 65 \
+            --trigger_orientation "$TRIGGER_ORIENTATION" \
+            $FLIP_CAMERA \
+            --resolution 1280x720 \
+            --api_url "$API_URL=https://achecourtroom-backend.onrender.com/analise/add" \
         ;;
     
     *)
