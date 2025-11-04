@@ -117,9 +117,19 @@ source venv/bin/activate
 
 # Executar script interativo
 ./run_tests.sh
+
+# Executar Script Run IN
+# Exemplo de uso:
+    ./runin.sh [flip_camera] [horizontal|vertical]
+# Exemplos:
+    ./runin.sh
+    ./runin.sh flip_camera
+    ./runin.sh vertical
+    ./runin.sh flip_camera horizontal
 ```
 
 O script oferece um menu com as opções mais comuns.
+
 
 ### Opção 2: Comando Direto
 

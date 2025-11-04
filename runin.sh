@@ -1,5 +1,12 @@
 #!/bin/bash
 # Script para testar o sistema de rastreamento - Modo Competição
+# Exemplo de uso:
+#   bash runin.sh [flip_camera] [horizontal|vertical]
+# Exemplos:
+#   bash runin.sh
+#   bash runin.sh flip_camera
+#   bash runin.sh vertical
+#   bash runin.sh flip_camera horizontal
 
 echo "=================================="
 echo "🎯 Sistema de Rastreamento - Modo Competição"
