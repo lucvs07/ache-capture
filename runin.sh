@@ -8,6 +8,12 @@
 #   bash runin.sh vertical
 #   bash runin.sh flip_camera horizontal
 
+# Cores para output
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+NC='\033[0m' # No Color
+
 echo "=================================="
 echo "🎯 Sistema de Rastreamento - Modo Competição"
 echo "=================================="
@@ -92,14 +98,14 @@ if [ "$CONFIRM_CHOICE" -ne 1 ]; then
     echo "Execução cancelada pelo usuário."
     exit 0
 fi
+
 echo -e "🚀 Iniciando..."
-        python3 yolo_detect.py \
-            --model "$MODEL" \
-            --source usb0 \
-            --thresh 0.3 \
-            --trigger_line 65 \
-            --trigger_orientation "$TRIGGER_ORIENTATION" \
-            $FLIP_CAMERA \
-            --resolution 1280x720 \
-            --api_url "$API_URL=https://achecourtroom-backend.onrender.com/analise/add" \
-        ;;
+python3 yolo_detect.py \
+    --model "$MODEL" \
+    --source usb0 \
+    --thresh 0.3 \
+    --trigger_line 65 \
+    --trigger_orientation "$TRIGGER_ORIENTATION" \
+    $FLIP_CAMERA \
+    --resolution 1280x720 \
+    --api_url "https://achecourtroom-backend.onrender.com/analise/add"
