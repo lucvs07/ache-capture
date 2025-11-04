@@ -21,3 +21,5 @@ python -m pip install -r requirements.txt
 ls /dev/video*
 
 yolo export model=model-v9.pt format=ncnn
+
+yolo_detect.py --model model-v16.pt --source usb0 --thresh 0.3 --trigger_line 75 --trigger_orientation horizontal --flip_camera --api_url https://achecourtroom-backend.onrender.com/analise/add
