@@ -67,6 +67,9 @@ fi
 if [ -f "model-v16.pt" ]; then
     MODELS_AVAILABLE+=("model-v16.pt")
 fi
+if [ -d "model-v18_ncnn_model" ]; then
+    MODELS_AVAILABLE+=("model-v18_ncnn_model")
+fi
 
 # Selecionar modelo
 echo "Modelos disponíveis:"
