@@ -614,10 +614,23 @@ while True:
                         print(f'   ID: {track_id} | UUID: {obj_uuid[:8]}...')
                         print(f'   Tempo de vida: {lifetime:.2f}s')
                         
-                        # Verificar se é blister incompleto
-                        if 'incompleto' in majority_class.lower() or 'incomplete' in majority_class.lower():
+                        # Lista de classes consideradas "com avaria"
+                        com_avaria = [
+                            "Blister_Incompleto",
+                            "Blister_Vazio",
+                            "Embalagem_Com_Avaria",
+                            "Embalagem_Rosa",
+                            "Frasco_Incompleto",
+                            "Frasco_Rotulo_Incompleto",
+                            "Frasco_Sem_Dosador",
+                            "Frasco_Sem_Rotulo",
+                        ]
+
+                        is_avaria = majority_class in com_avaria
+                        if is_avaria:
+                            print(f'   ⚠️  Objeto COM AVARIA detectado: {majority_class}')
+                        elif 'incompleto' in majority_class.lower() or 'incomplete' in majority_class.lower():
                             print(f'   ⚠️  Blister Incompleto Detectado - Contagem: PENDENTE')
-                        
                         print(f'   ⏳ Aguardando batch upload após inatividade')
                         print('=' * 70)
                         
@@ -686,7 +699,8 @@ while True:
                                 'consenso': f"{vote_count}/{total_votes}",
                                 'consensoPercentual': vote_percent,
                                 'tempoVidaSegundos': round(lifetime, 2),
-                                'contagem': 'pendente' if is_incomplete_blister else None
+                                'contagem': 'pendente' if is_incomplete_blister else None,
+                                'com_avaria': is_avaria
                             }
                             
                             # Criar snapshot imutável
@@ -783,6 +797,17 @@ while True:
     # Draw statistics
     cv2.putText(frame, f'Objetos ativos: {len(active_tracks)}', (10, 50), cv2.FONT_HERSHEY_SIMPLEX, .6, (0,255,255), 2)
     cv2.putText(frame, f'Cruzaram linha: {len(crossed_objects)}', (10, 75), cv2.FONT_HERSHEY_SIMPLEX, .6, (0,255,255), 2)
+
+    # Exibir quantidade de objetos com avaria que cruzaram a linha
+    num_avarias = 0
+    for track_id in crossed_objects:
+        snap = pending_uploads.get(track_id)
+        # Se já foi processado, buscar no último snapshot processado
+        if snap is None:
+            continue
+        if snap.metadata.get('com_avaria'):
+            num_avarias += 1
+    cv2.putText(frame, f'Com avaria: {num_avarias}', (10, 100), cv2.FONT_HERSHEY_SIMPLEX, .6, (0,165,255), 2)
 
     # Display detection results
     cv2.imshow('Rastreamento de Embalagens - Pressione Q para sair', frame)
