@@ -502,7 +502,7 @@ while True:
     frame_sem_label = frame.copy()
 
     # Run tracking inference
-    results = model.track(frame, persist=True, verbose=False)
+    results = model.track(frame, persist=True, verbose=False, conf=min_thresh)
 
     # Extract results
     detections = results[0].boxes
