@@ -801,8 +801,13 @@ while True:
     cv2.putText(frame, f'Objetos ativos: {len(active_tracks)}', (10, 50), cv2.FONT_HERSHEY_SIMPLEX, .6, (0,255,255), 2)
     cv2.putText(frame, f'Cruzaram linha: {len(crossed_objects)}', (10, 75), cv2.FONT_HERSHEY_SIMPLEX, .6, (0,255,255), 2)
 
-    # Exibir quantidade de objetos com avaria que cruzaram a linha (ativos ou inativos)
-    cv2.putText(frame, f'Com avaria: {len(crossed_avaria_objects)}', (10, 100), cv2.FONT_HERSHEY_SIMPLEX, .6, (0,165,255), 2)
+
+    # Exibir quantidade de objetos com avaria (vermelho) e aprovados (verde)
+    total_cruzaram = len(crossed_objects)
+    total_avaria = len(crossed_avaria_objects)
+    total_aprovados = total_cruzaram - total_avaria
+    cv2.putText(frame, f'Aprovados: {total_aprovados}', (10, 100), cv2.FONT_HERSHEY_SIMPLEX, .6, (0,200,0), 2)
+    cv2.putText(frame, f'Com avaria: {total_avaria}', (10, 125), cv2.FONT_HERSHEY_SIMPLEX, .6, (0,0,255), 2)
 
     # Display detection results
     cv2.imshow('Rastreamento de Embalagens - Pressione Q para sair', frame)
