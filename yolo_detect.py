@@ -116,6 +116,8 @@ labels = model.names
 track_history = defaultdict(lambda: deque(maxlen=30))
 object_registry = {}  # {track_id: {'uuid', 'first_seen', 'class', 'crossed_line', 'best_frame', 'best_frame_labeled', 'best_confidence'}}
 crossed_objects = set()
+# IDs dos objetos com avaria que cruzaram a linha
+crossed_avaria_objects = set()
 
 # ============================================================================
 # SISTEMA DE BATCH UPLOAD: Processa uploads após período de inatividade
@@ -629,6 +631,7 @@ while True:
                         is_avaria = majority_class in com_avaria
                         if is_avaria:
                             print(f'   ⚠️  Objeto COM AVARIA detectado: {majority_class}')
+                            crossed_avaria_objects.add(track_id)
                         elif 'incompleto' in majority_class.lower() or 'incomplete' in majority_class.lower():
                             print(f'   ⚠️  Blister Incompleto Detectado - Contagem: PENDENTE')
                         print(f'   ⏳ Aguardando batch upload após inatividade')
@@ -798,16 +801,8 @@ while True:
     cv2.putText(frame, f'Objetos ativos: {len(active_tracks)}', (10, 50), cv2.FONT_HERSHEY_SIMPLEX, .6, (0,255,255), 2)
     cv2.putText(frame, f'Cruzaram linha: {len(crossed_objects)}', (10, 75), cv2.FONT_HERSHEY_SIMPLEX, .6, (0,255,255), 2)
 
-    # Exibir quantidade de objetos com avaria que cruzaram a linha
-    num_avarias = 0
-    for track_id in crossed_objects:
-        snap = pending_uploads.get(track_id)
-        # Se já foi processado, buscar no último snapshot processado
-        if snap is None:
-            continue
-        if snap.metadata.get('com_avaria'):
-            num_avarias += 1
-    cv2.putText(frame, f'Com avaria: {num_avarias}', (10, 100), cv2.FONT_HERSHEY_SIMPLEX, .6, (0,165,255), 2)
+    # Exibir quantidade de objetos com avaria que cruzaram a linha (ativos ou inativos)
+    cv2.putText(frame, f'Com avaria: {len(crossed_avaria_objects)}', (10, 100), cv2.FONT_HERSHEY_SIMPLEX, .6, (0,165,255), 2)
 
     # Display detection results
     cv2.imshow('Rastreamento de Embalagens - Pressione Q para sair', frame)
