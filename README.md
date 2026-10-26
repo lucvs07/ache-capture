@@ -1,5 +1,9 @@
 # 🎯 ACHE Capture - Sistema de Detecção e Rastreamento YOLO
 
+<!-- portfolio:pt -->
+Serviço de visão computacional do sistema de inspeção de embalagens: com YOLO, detecta e rastreia embalagens na linha de produção, captura uma foto quando cada uma cruza a linha de disparo e a envia para análise.
+<!-- /portfolio:pt -->
+
 Sistema completo de visão computacional para detecção, rastreamento e captura de objetos em tempo real usando YOLO, com trigger line vertical configurável e integração com APIs externas.
 
 ---
